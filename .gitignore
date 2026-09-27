@@ -1,46 +1,28 @@
-﻿# Flutter
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment secrets
+.env
+.env.*
+
+# Flutter
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
-.pub-cache/
 build/
-coverage/
-
-# Android
-android/.gradle/
-android/local.properties
-android/app/debug/
-android/app/profile/
-android/app/release/
 
 # IDE
 .idea/
 .vscode/
 
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-.venv/
-venv/
-env/
-
-# Environment / secrets
-.env
-*.env
-
-# Python tools
-.pytest_cache/
-.mypy_cache/
-
 # OS
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
-
-# Generated APK
-submission/

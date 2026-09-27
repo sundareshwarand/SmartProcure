@@ -1,0 +1,34 @@
+SMARTPROCURE FINAL BUILD
+
+Project:
+Smart Digital Procurement
+
+Platform:
+Flutter Android
+
+Backend:
+FastAPI
+
+Database:
+MySQL 8.0
+
+Authentication:
+JWT + RBAC
+
+Modules:
+Farmer
+Booking
+Live Queue
+Operator
+Procurement
+Payment
+Officer
+Admin
+AI Recommendation
+Audit
+
+APK:
+SmartProcure-Final.apk
+
+Build Date:
+2026-09-27 12:21:39

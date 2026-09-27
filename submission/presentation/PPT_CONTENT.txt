@@ -1,0 +1,116 @@
+﻿SMARTPROCURE
+Intelligent Farmer Procurement & Queue Management System
+
+SLIDE 1 — TITLE
+SmartProcure
+Intelligent Farmer Procurement & Queue Management System
+SIH Problem Statement 26032
+
+SLIDE 2 — PROBLEM
+• Long waiting time for farmers
+• Uncertainty about procurement schedules
+• Manual queue management
+• Limited procurement status visibility
+• Payment status uncertainty
+• Centre congestion
+
+SLIDE 3 — PROPOSED SOLUTION
+• Digital farmer registration
+• Smart slot booking
+• Digital token
+• Live queue tracking
+• Procurement workflow
+• Payment tracking
+• Digital receipt
+• Officer and Admin monitoring
+
+SLIDE 4 — SYSTEM ARCHITECTURE
+Flutter App
+      ↓
+FastAPI REST API
+      ↓
+SQLAlchemy
+      ↓
+MySQL
+
+AI/ML ───────→ Smart Recommendations
+WebSocket ───→ Live Queue
+
+SLIDE 5 — FARMER JOURNEY
+Login
+→ Select Crop
+→ Enter Quantity
+→ Select Centre
+→ AI Slot Recommendation
+→ Book Slot
+→ Digital Token
+→ Live Queue
+→ Procurement
+→ Payment
+→ Receipt
+
+SLIDE 6 — OPERATOR
+• Live queue
+• Call farmer
+• No-show handling
+• Quality inspection
+• Digital weighing
+• Amount calculation
+• Procurement completion
+• Payment trigger
+• Receipt
+
+SLIDE 7 — INTELLIGENCE
+• Wait-time prediction
+• Centre congestion analysis
+• Slot recommendation
+• Demand forecasting
+• Delay intelligence
+• Load balancing
+
+SLIDE 8 — SECURITY
+• JWT authentication
+• Role-Based Access Control
+• Farmer/Operator/Officer/Admin roles
+• Audit logging
+• Protected APIs
+• Centre-level authorization
+
+SLIDE 9 — TECHNOLOGY
+Frontend: Flutter + Riverpod
+Backend: FastAPI + Python
+Database: MySQL
+ORM: SQLAlchemy
+AI/ML: Python + Scikit-learn
+Real-time: WebSocket
+Maps: OpenStreetMap
+
+SLIDE 10 — IMPACT & FUTURE
+• Reduce unnecessary waiting
+• Improve transparency
+• Improve centre operations
+• Better farmer experience
+• Government-scale deployment potential
+
+Future:
+• Government OTP/SMS
+• Payment gateway
+• IoT weighing integration
+• Advanced forecasting
+• Multi-district deployment
+
+SLIDE 11 — LIVE DEMO
+Farmer Booking
+→ Live Queue
+→ Operator Processing
+→ Quality
+→ Weighing
+→ Payment
+→ Receipt
+→ Officer
+→ Admin
+
+SLIDE 12 — CONCLUSION
+SmartProcure transforms procurement from a waiting-based process into a transparent, intelligent and digitally managed workflow.
+
+THANK YOU
