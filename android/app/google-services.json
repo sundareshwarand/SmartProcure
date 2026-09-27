@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "215693302575",
+    "project_id": "remindr-4e80c",
+    "storage_bucket": "remindr-4e80c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215693302575:android:e0e5edbe062de40d795fda",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYIRt2X_Rr7OmIz0DKZm46vZzDs8hcr88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215693302575:android:ce740bdceb5673ad795fda",
+        "android_client_info": {
+          "package_name": "com.example.flutter_scheduler"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYIRt2X_Rr7OmIz0DKZm46vZzDs8hcr88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:215693302575:android:983ea9e371e297f7795fda",
+        "android_client_info": {
+          "package_name": "com.example.smart_procure"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYIRt2X_Rr7OmIz0DKZm46vZzDs8hcr88"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

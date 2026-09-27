@@ -1,0 +1,228 @@
+﻿from datetime import datetime, timedelta, timezone
+import os
+import random
+import time
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from jose import jwt
+
+router = APIRouter(
+    prefix="/api/v1/otp",
+    tags=["OTP"],
+)
+
+OTP_STORE = {}
+
+OTP_EXPIRY_SECONDS = 300
+MAX_ATTEMPTS = 5
+
+SECRET_KEY = os.getenv(
+    "SECRET_KEY",
+    "smartprocure-development-secret-key-change-in-production",
+)
+
+ALGORITHM = "HS256"
+
+
+class OTPSendRequest(BaseModel):
+    phone: str
+    role: str = "farmer"
+
+
+class OTPVerifyRequest(BaseModel):
+    phone: str
+    otp: str
+    role: str = "farmer"
+
+
+def clean_phone(phone: str) -> str:
+    phone = str(phone).strip()
+
+    if phone.startswith("+91"):
+        phone = phone[3:]
+
+    if phone.startswith("91") and len(phone) == 12:
+        phone = phone[2:]
+
+    if not phone.isdigit() or len(phone) != 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Enter a valid 10-digit Indian mobile number",
+        )
+
+    return phone
+
+
+def clean_role(role: str) -> str:
+    allowed = {
+        "farmer",
+        "operator",
+        "officer",
+        "admin",
+    }
+
+    role = str(role).strip().lower()
+
+    if role not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid role",
+        )
+
+    return role
+
+
+def create_token(phone: str, role: str):
+    now = datetime.now(timezone.utc)
+
+    payload = {
+        "sub": f"otp_{phone}",
+        "phone": phone,
+        "role": role,
+        "iat": int(now.timestamp()),
+        "exp": int(
+            (now + timedelta(minutes=60)).timestamp()
+        ),
+    }
+
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def generate_otp():
+    return f"{random.randint(100000, 999999)}"
+
+
+@router.post("/send")
+def send_otp(request: OTPSendRequest):
+
+    phone = clean_phone(request.phone)
+    role = clean_role(request.role)
+
+    otp = generate_otp()
+
+    OTP_STORE[phone] = {
+        "otp": otp,
+        "role": role,
+        "created_at": time.time(),
+        "expires_at": time.time() + OTP_EXPIRY_SECONDS,
+        "attempts": 0,
+    }
+
+    print(
+        f"\n[SMARTPROCURE OTP] "
+        f"Phone: {phone} | OTP: {otp}\n"
+    )
+
+    return {
+        "success": True,
+        "message": "OTP generated successfully",
+        "phone": phone,
+        "role": role,
+        "demo_otp": otp,
+        "expires_in": OTP_EXPIRY_SECONDS,
+    }
+
+
+@router.post("/verify")
+def verify_otp(request: OTPVerifyRequest):
+
+    phone = clean_phone(request.phone)
+    otp = str(request.otp).strip()
+    role = clean_role(request.role)
+
+    if len(otp) != 6 or not otp.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="OTP must contain exactly 6 digits",
+        )
+
+    record = OTP_STORE.get(phone)
+
+    if not record:
+        raise HTTPException(
+            status_code=400,
+            detail="OTP not found. Please request a new OTP",
+        )
+
+    if time.time() > record["expires_at"]:
+        OTP_STORE.pop(phone, None)
+
+        raise HTTPException(
+            status_code=400,
+            detail="OTP expired. Please request a new OTP",
+        )
+
+    if record["attempts"] >= MAX_ATTEMPTS:
+        OTP_STORE.pop(phone, None)
+
+        raise HTTPException(
+            status_code=429,
+            detail="Too many OTP attempts. Please request a new OTP",
+        )
+
+    record["attempts"] += 1
+
+    if otp != record["otp"]:
+        remaining = MAX_ATTEMPTS - record["attempts"]
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid OTP. Attempts remaining: {remaining}",
+        )
+
+    if role != record["role"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Role mismatch",
+        )
+
+    access_token = create_token(
+        phone,
+        role,
+    )
+
+    OTP_STORE.pop(phone, None)
+
+    return {
+        "success": True,
+        "message": "OTP verified successfully",
+        "phone": phone,
+        "role": role,
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
+
+
+# Backward-compatible endpoint
+@router.post("/request-otp")
+def request_otp(
+    phone: str,
+    role: str = "farmer",
+):
+    return send_otp(
+        OTPSendRequest(
+            phone=phone,
+            role=role,
+        )
+    )
+
+
+# Backward-compatible endpoint
+@router.post("/verify-otp")
+def verify_otp_legacy(
+    phone: str,
+    otp: str,
+    role: str = "farmer",
+):
+    return verify_otp(
+        OTPVerifyRequest(
+            phone=phone,
+            otp=otp,
+            role=role,
+        )
+    )

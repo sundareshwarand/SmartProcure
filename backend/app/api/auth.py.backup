@@ -1,0 +1,360 @@
+﻿from datetime import datetime, timedelta
+import hashlib
+import random
+import time
+
+from fastapi import APIRouter, HTTPException, Header
+from pydantic import BaseModel
+
+from jose import jwt, JWTError
+
+
+router = APIRouter(
+    prefix="/api/v1/auth",
+    tags=["Authentication"],
+)
+
+
+SECRET_KEY = "smartprocure-development-secret-key"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_MINUTES = 60
+
+
+# =========================================================
+# DEMO USERS
+# =========================================================
+
+USERS = {
+    "farmer01": {
+        "username": "farmer01",
+        "password": "demo",
+        "role": "farmer",
+        "centre_ids": [],
+        "mobile": "9876543210",
+    },
+    "operator01": {
+        "username": "operator01",
+        "password": "demo",
+        "role": "operator",
+        "centre_ids": [1],
+        "mobile": "9876543211",
+    },
+    "officer01": {
+        "username": "officer01",
+        "password": "demo",
+        "role": "officer",
+        "centre_ids": [],
+        "mobile": "9876543212",
+    },
+    "admin01": {
+        "username": "admin01",
+        "password": "demo",
+        "role": "admin",
+        "centre_ids": [],
+        "mobile": "9876543213",
+    },
+}
+
+
+# =========================================================
+# DEMO OTP STORAGE
+# =========================================================
+
+OTP_STORE = {}
+
+OTP_EXPIRY_SECONDS = 300
+
+
+# =========================================================
+# REQUEST MODELS
+# =========================================================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class OTPRequest(BaseModel):
+    mobile: str
+
+
+class OTPVerifyRequest(BaseModel):
+    mobile: str
+    otp: str
+
+
+# =========================================================
+# HELPERS
+# =========================================================
+
+def normalise_mobile(mobile: str) -> str:
+    mobile = str(mobile).strip()
+
+    if mobile.startswith("+91"):
+        mobile = mobile[3:]
+
+    if mobile.startswith("91") and len(mobile) == 12:
+        mobile = mobile[2:]
+
+    return mobile
+
+
+def create_access_token(user: dict):
+    expires = datetime.utcnow() + timedelta(
+        minutes=ACCESS_TOKEN_MINUTES
+    )
+
+    payload = {
+        "sub": user["username"],
+        "role": user["role"],
+        "centre_ids": user.get("centre_ids", []),
+        "exp": expires,
+    }
+
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+
+
+def find_user_by_mobile(mobile: str):
+    mobile = normalise_mobile(mobile)
+
+    for user in USERS.values():
+        if normalise_mobile(user["mobile"]) == mobile:
+            return user
+
+    return None
+
+
+# =========================================================
+# NORMAL LOGIN
+# =========================================================
+
+@router.post("/login")
+def login(request: LoginRequest):
+
+    user = USERS.get(request.username)
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password",
+        )
+
+    if user["password"] != request.password:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid username or password",
+        )
+
+    token = create_access_token(user)
+
+    return {
+        "success": True,
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "username": user["username"],
+            "role": user["role"],
+            "centre_ids": user.get("centre_ids", []),
+        },
+    }
+
+
+# =========================================================
+# SEND OTP
+# =========================================================
+
+@router.post("/send-otp")
+def send_otp(request: OTPRequest):
+
+    mobile = normalise_mobile(request.mobile)
+
+    if len(mobile) != 10 or not mobile.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail="Enter a valid 10-digit mobile number",
+        )
+
+    user = find_user_by_mobile(mobile)
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="Mobile number is not registered",
+        )
+
+    # Generate 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+
+    OTP_STORE[mobile] = {
+        "otp": otp,
+        "created_at": time.time(),
+        "attempts": 0,
+    }
+
+    # IMPORTANT:
+    # This is a DEMO OTP implementation.
+    # Production should send OTP through an SMS provider.
+    print(
+        f"\n[SMARTPROCURE DEMO OTP] "
+        f"Mobile: {mobile} | OTP: {otp}\n"
+    )
+
+    return {
+        "success": True,
+        "message": "OTP generated successfully",
+        "mobile": mobile,
+        "expires_in_seconds": OTP_EXPIRY_SECONDS,
+
+        # DEMO ONLY
+        "demo_otp": otp,
+    }
+
+
+# =========================================================
+# VERIFY OTP
+# =========================================================
+
+@router.post("/verify-otp")
+def verify_otp(request: OTPVerifyRequest):
+
+    mobile = normalise_mobile(request.mobile)
+    otp = str(request.otp).strip()
+
+    record = OTP_STORE.get(mobile)
+
+    if not record:
+        raise HTTPException(
+            status_code=400,
+            detail="OTP not found. Please request a new OTP.",
+        )
+
+    # Expiry check
+    if time.time() - record["created_at"] > OTP_EXPIRY_SECONDS:
+
+        OTP_STORE.pop(mobile, None)
+
+        raise HTTPException(
+            status_code=400,
+            detail="OTP expired. Please request a new OTP.",
+        )
+
+    # Attempt limit
+    if record["attempts"] >= 5:
+
+        OTP_STORE.pop(mobile, None)
+
+        raise HTTPException(
+            status_code=429,
+            detail="Too many OTP attempts. Please request a new OTP.",
+        )
+
+    # Wrong OTP
+    if otp != record["otp"]:
+
+        record["attempts"] += 1
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid OTP",
+        )
+
+    user = find_user_by_mobile(mobile)
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    # OTP successfully verified
+    OTP_STORE.pop(mobile, None)
+
+    token = create_access_token(user)
+
+    return {
+        "success": True,
+        "message": "OTP verified successfully",
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "username": user["username"],
+            "role": user["role"],
+            "centre_ids": user.get("centre_ids", []),
+            "mobile": mobile,
+        },
+    }
+
+
+# =========================================================
+# GET CURRENT USER
+# =========================================================
+
+@router.get("/me")
+def current_user(authorization: str = Header(default="")):
+
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization header required",
+        )
+
+    if not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid authorization scheme",
+        )
+
+    token = authorization.split(" ", 1)[1].strip()
+
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+
+        username = payload.get("sub")
+
+        if not username:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token",
+            )
+
+        user = USERS.get(username)
+
+        if not user:
+            raise HTTPException(
+                status_code=401,
+                detail="User not found",
+            )
+
+        return {
+            "username": user["username"],
+            "role": user["role"],
+            "centre_ids": user.get("centre_ids", []),
+        }
+
+    except JWTError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token",
+        )
+
+
+# =========================================================
+# LOGOUT
+# =========================================================
+
+@router.post("/logout")
+def logout():
+
+    return {
+        "success": True,
+        "message": "Logged out successfully",
+    }
+

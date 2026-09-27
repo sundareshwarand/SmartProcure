@@ -1,0 +1,314 @@
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+)
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.queue import QueueEntry
+
+
+router = APIRouter(
+    prefix="/api/v1/queue",
+    tags=["Queue"],
+)
+
+
+# =========================================================
+# WebSocket Connection Manager
+# =========================================================
+
+class QueueConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[
+            WebSocket,
+            int | None,
+        ] = {}
+
+    async def connect(
+        self,
+        websocket: WebSocket,
+        centre_id: int | None = None,
+    ):
+        await websocket.accept()
+
+        self.active_connections[websocket] = centre_id
+
+    def disconnect(
+        self,
+        websocket: WebSocket,
+    ):
+        self.active_connections.pop(
+            websocket,
+            None,
+        )
+
+    async def broadcast(
+        self,
+        message: dict,
+        centre_id: int | None = None,
+    ):
+        disconnected = []
+
+        for websocket, connected_centre_id in list(
+            self.active_connections.items()
+        ):
+            # If a centre is specified, only send the
+            # update to clients connected to that centre.
+            if (
+                centre_id is not None
+                and connected_centre_id is not None
+                and connected_centre_id != centre_id
+            ):
+                continue
+
+            try:
+                await websocket.send_json(message)
+
+            except Exception:
+                disconnected.append(websocket)
+
+        for websocket in disconnected:
+            self.disconnect(websocket)
+
+
+queue_manager = QueueConnectionManager()
+
+
+# =========================================================
+# Helper - Build Queue Data
+# =========================================================
+
+def build_queue_data(
+    db: Session,
+    centre_id: int | None = None,
+):
+    query = db.query(QueueEntry)
+
+    if centre_id is not None:
+        query = query.filter(
+            QueueEntry.centre_id == centre_id
+        )
+
+    entries = (
+        query
+        .filter(
+            QueueEntry.status.notin_(
+                [
+                    "Completed",
+                    "No Show",
+                ]
+            )
+        )
+        .order_by(
+            QueueEntry.position.asc()
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": q.id,
+            "booking_id": q.booking_id,
+            "farmer_id": q.farmer_id,
+            "centre_id": q.centre_id,
+            "token": q.token,
+            "position": q.position,
+            "status": q.status,
+        }
+        for q in entries
+    ]
+
+
+# =========================================================
+# REST - Get Queue
+# =========================================================
+
+@router.get("")
+def get_queue(
+    centre_id: int | None = None,
+    db: Session = Depends(get_db),
+):
+    queue = build_queue_data(
+        db,
+        centre_id,
+    )
+
+    return {
+        "success": True,
+        "count": len(queue),
+        "queue": queue,
+    }
+
+
+# =========================================================
+# REST - Get Single Queue Entry
+# =========================================================
+
+@router.get("/{queue_id}")
+def get_queue_entry(
+    queue_id: int,
+    db: Session = Depends(get_db),
+):
+    q = (
+        db.query(QueueEntry)
+        .filter(
+            QueueEntry.id == queue_id
+        )
+        .first()
+    )
+
+    if not q:
+        raise HTTPException(
+            status_code=404,
+            detail="Queue entry not found",
+        )
+
+    return {
+        "success": True,
+        "queue_entry": {
+            "id": q.id,
+            "booking_id": q.booking_id,
+            "farmer_id": q.farmer_id,
+            "centre_id": q.centre_id,
+            "token": q.token,
+            "position": q.position,
+            "status": q.status,
+        },
+    }
+
+
+# =========================================================
+# REST - Update Queue Status
+# =========================================================
+
+@router.patch("/{queue_id}/status")
+async def update_queue_status(
+    queue_id: int,
+    status: str,
+    db: Session = Depends(get_db),
+):
+    q = (
+        db.query(QueueEntry)
+        .filter(
+            QueueEntry.id == queue_id
+        )
+        .first()
+    )
+
+    if not q:
+        raise HTTPException(
+            status_code=404,
+            detail="Queue entry not found",
+        )
+
+    allowed = [
+        "Waiting",
+        "Called",
+        "Processing",
+        "Completed",
+        "No Show",
+    ]
+
+    if status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid queue status",
+        )
+
+    q.status = status
+
+    db.commit()
+    db.refresh(q)
+
+    # Build the latest queue for this centre.
+    queue = build_queue_data(
+        db,
+        q.centre_id,
+    )
+
+    # Broadcast only to clients connected
+    # to the same centre.
+    await queue_manager.broadcast(
+        {
+            "type": "queue_updated",
+            "centre_id": q.centre_id,
+            "updated_queue_id": q.id,
+            "updated_status": q.status,
+            "queue": queue,
+        },
+        centre_id=q.centre_id,
+    )
+
+    return {
+        "success": True,
+        "message": "Queue status updated",
+        "status": status,
+    }
+
+
+# =========================================================
+# WebSocket - Live Queue
+# =========================================================
+
+@router.websocket("/ws")
+async def queue_websocket(
+    websocket: WebSocket,
+    centre_id: int | None = None,
+):
+    await queue_manager.connect(
+        websocket,
+        centre_id,
+    )
+
+    db = next(
+        get_db()
+    )
+
+    try:
+        # -------------------------------------------------
+        # Send current queue immediately
+        # -------------------------------------------------
+
+        queue = build_queue_data(
+            db,
+            centre_id,
+        )
+
+        await websocket.send_json(
+            {
+                "type": "queue_snapshot",
+                "centre_id": centre_id,
+                "queue": queue,
+            }
+        )
+
+        # -------------------------------------------------
+        # Keep connection alive
+        # -------------------------------------------------
+
+        while True:
+            message = await websocket.receive_text()
+
+            if message.lower() == "ping":
+                await websocket.send_json(
+                    {
+                        "type": "pong",
+                    }
+                )
+
+    except WebSocketDisconnect:
+        pass
+
+    except Exception:
+        pass
+
+    finally:
+        queue_manager.disconnect(
+            websocket
+        )
+
+        db.close()
