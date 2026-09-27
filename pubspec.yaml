@@ -1,0 +1,38 @@
+name: smart_procure
+description: SmartProcure — Smart Farmer Procurement & Queue Management (Phase 1 scaffold)
+publish_to: 'none'
+version: 0.1.0
+environment:
+  sdk: '>=2.18.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+  flutter_riverpod: any
+  go_router: any
+  dio: any
+  flutter_secure_storage: any
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  flutter_map: ^8.3.2
+  connectivity_plus: any
+  sendotp_flutter_sdk: ^0.0.2
+  web_socket_channel: ^3.0.3
+  latlong2: ^0.10.1
+  geolocator: ^14.0.3
+  url_launcher: ^6.3.2
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+    - assets/i18n/
