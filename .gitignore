@@ -10,39 +10,37 @@ coverage/
 # Android
 android/.gradle/
 android/local.properties
-android/key.properties
-*.jks
-*.keystore
+android/app/debug/
+android/app/profile/
+android/app/release/
 
 # IDE
 .idea/
 .vscode/
-*.iml
 
 # Python
 __pycache__/
 *.py[cod]
 *.pyo
+*.pyd
 .venv/
 venv/
 env/
 
 # Environment / secrets
 .env
-.env.*
-!.env.example
+*.env
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-*.log
+# Python tools
+.pytest_cache/
+.mypy_cache/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Generated submission files
+# Logs
+*.log
+
+# Generated APK
 submission/
