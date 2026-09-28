@@ -11,63 +11,67 @@ router = APIRouter(
 )
 
 
-OTP_STORE = {}
+# Demo OTP storage.
+# For production, replace this with Redis/database + SMS provider.
+otp_store = {}
 
 
-class OTPSendRequest(BaseModel):
-    mobile: str
+class SendOTPRequest(BaseModel):
+    phone: str
 
 
-class OTPVerifyRequest(BaseModel):
-    mobile: str
+class VerifyOTPRequest(BaseModel):
+    phone: str
     otp: str
 
 
 @router.post("/send")
-def send_otp(request: OTPSendRequest):
-    mobile = request.mobile.strip()
+def send_otp(request: SendOTPRequest):
 
-    if not mobile:
+    phone = request.phone.strip()
+
+    if not phone:
         raise HTTPException(
             status_code=400,
-            detail="Mobile number is required",
+            detail="Phone number is required",
         )
 
-    # Demo OTP.
-    # Replace with Firebase/Twilio/SMS provider in production.
     otp = str(random.randint(100000, 999999))
 
-    OTP_STORE[mobile] = {
+    otp_store[phone] = {
         "otp": otp,
         "expires_at": datetime.utcnow() + timedelta(minutes=5),
-        "verified": False,
     }
 
-    print(f"[DEMO OTP] {mobile}: {otp}")
+    # Demo mode:
+    # In production this OTP must be sent through
+    # Firebase/Twilio/MSG91/AWS SNS/etc.
+    print(f"[DEMO OTP] {phone} -> {otp}")
 
     return {
         "success": True,
         "message": "OTP generated successfully",
-        "expires_in_seconds": 300,
+        "expires_in": 300,
         "demo_otp": otp,
     }
 
 
 @router.post("/verify")
-def verify_otp(request: OTPVerifyRequest):
-    mobile = request.mobile.strip()
+def verify_otp(request: VerifyOTPRequest):
+
+    phone = request.phone.strip()
     otp = request.otp.strip()
 
-    record = OTP_STORE.get(mobile)
+    record = otp_store.get(phone)
 
     if not record:
         raise HTTPException(
             status_code=400,
-            detail="OTP not requested",
+            detail="OTP not found or expired",
         )
 
     if datetime.utcnow() > record["expires_at"]:
-        OTP_STORE.pop(mobile, None)
+        otp_store.pop(phone, None)
 
         raise HTTPException(
             status_code=400,
@@ -80,11 +84,11 @@ def verify_otp(request: OTPVerifyRequest):
             detail="Invalid OTP",
         )
 
-    record["verified"] = True
+    otp_store.pop(phone, None)
 
     return {
         "success": True,
         "message": "OTP verified successfully",
-        "mobile": mobile,
+        "phone": phone,
         "verified": True,
     }
