@@ -1,6 +1,6 @@
 ﻿class Env {
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8000',
-  );
+  // IMPORTANT:
+  // Replace this AFTER Render gives you the real backend URL.
+  static const String apiBaseUrl =
+      'https://REPLACE_WITH_RENDER_URL.onrender.com';
 }
