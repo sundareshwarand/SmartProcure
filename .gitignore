@@ -1,28 +1,10 @@
-﻿# Python
-__pycache__/
-*.py[cod]
-*.pyo
-
-# Virtual environments
 .venv/
 venv/
-env/
-
-# Environment secrets
+__pycache__/
+*.pyc
 .env
-.env.*
-
-# Flutter
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
 build/
-
-# IDE
 .idea/
 .vscode/
-
-# OS
-.DS_Store
-Thumbs.db
+coverage/
