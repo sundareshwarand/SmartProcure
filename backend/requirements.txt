@@ -2,7 +2,7 @@
 uvicorn[standard]==0.22.0
 SQLAlchemy>=2.0.31,<2.1
 alembic==1.11.1
-psycopg2-binary==2.9.7
+psycopg2-binary>=2.9.10
 pymysql
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
