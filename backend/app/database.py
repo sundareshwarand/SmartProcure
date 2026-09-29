@@ -34,4 +34,5 @@ def get_db():
 
 
 def init_db():
+    import app.models
     Base.metadata.create_all(bind=engine)
