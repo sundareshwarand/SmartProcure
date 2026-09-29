@@ -1,6 +1,6 @@
 ﻿fastapi==0.95.2
 uvicorn[standard]==0.22.0
-SQLAlchemy==2.0.20
+SQLAlchemy>=2.0.31,<2.1
 alembic==1.11.1
 pymysql
 python-jose[cryptography]==3.3.0
