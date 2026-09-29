@@ -1,6 +1,7 @@
-﻿from fastapi import FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import init_db
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.bookings import router as bookings_router
@@ -22,6 +23,11 @@ app = FastAPI(
     version="1.0.0",
     description="Smart Digital Procurement Backend",
 )
+
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
 
 
 app.add_middleware(
